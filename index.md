@@ -160,7 +160,7 @@ When using logarithmic merging, the HDR image is formed as:
 
 Here’s my code
 
-```Z_lin_ten = reshape(Z_lin_ten,M,N,3,16);
+``` Z_lin_ten = reshape(Z_lin_ten,M,N,3,16);
 Z_lin_uni = reshape(Z_lin_uni,M,N,3,16);
  
 % Linear merging
@@ -236,7 +236,7 @@ The photographic tonemapping equation is as follows. I have tried both processin
 
 ![image](https://user-images.githubusercontent.com/45420635/49144423-b1213480-f340-11e8-9479-63d78d58446f.png)
 
-```% Photographic Tonemapping
+``` % Photographic Tonemapping
  
 I = final_logm_tent;
 K = 0.15;
@@ -264,7 +264,7 @@ The Bilateral Filtering tonemapping equation is as follows. I have tried both pr
 + Apply an offset and a scale S to the base
 + Reconstructed the intensity
 
-```S = 4;
+``` S = 4;
 I = final_logm_tent;
  
 for c=1:3

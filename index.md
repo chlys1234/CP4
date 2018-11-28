@@ -24,7 +24,7 @@ In order to make the pixel mapping as smooth as possible, the following optimiza
 
 The code that Debevec put in the paper is as follows.
 
-<pre><code> function [g,lE]=gsolve(Z,B,w)
+<pre><code>function [g,lE]=gsolve(Z,B,w)
 n = 256;
 A = sparse((size(Z,1)/100)*size(Z,2)+n+1,n+(size(Z,1)/100));
 b = sparse(size(A,1),1);
@@ -70,7 +70,7 @@ lE = x(n+1:size(x,1));
 
 Since the image size was very large (4000 X 6000), we resized it 0.1x and in particular 100:1 sampling pixels into the equation. As a result, Pixel’s linear mapping looks like this. In the above equation, both the uniform type and the Tent type was used as a  w function as shown below.
 
-<pre><code> w_uni = zeros(256,1);
+<pre><code>w_uni = zeros(256,1);
 w_uni(3:253) = 1./256;
 w_ten = zeros(256,1);
 
@@ -87,7 +87,7 @@ end
 
 Here’s my code
 
-<pre><code> M=400;
+<pre><code>M=400;
 N=600;
 K=16;
 
@@ -163,7 +163,7 @@ When using logarithmic merging, the HDR image is formed as:
 
 Here’s my code
 
-<pre><code> Z_lin_ten = reshape(Z_lin_ten,M,N,3,16);
+<pre><code>Z_lin_ten = reshape(Z_lin_ten,M,N,3,16);
 Z_lin_uni = reshape(Z_lin_uni,M,N,3,16);
 
 % Linear merging
@@ -239,7 +239,7 @@ The photographic tonemapping equation is as follows. I have tried both processin
 
 ![image](https://user-images.githubusercontent.com/45420635/49144423-b1213480-f340-11e8-9479-63d78d58446f.png)
 
-<pre><code> % Photographic Tonemapping
+<pre><code>% Photographic Tonemapping
 
 I = final_logm_tent;
 K = 0.15;
@@ -267,7 +267,7 @@ The Bilateral Filtering tonemapping equation is as follows. I have tried both pr
 + Apply an offset and a scale S to the base
 + Reconstructed the intensity
 
-<pre><code> S = 4;
+<pre><code>S = 4;
 I = final_logm_tent;
 
 for c=1:3

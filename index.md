@@ -9,9 +9,8 @@ I was able to import a given .NEF format raw file into a 16bit-TIFF file on MATL
 
 After reading the dcraw documentation, I loaded a .NEF format file from MATLAB with the following flag:
 
-```     
-    im = imread(dc,'exposure10.nef','-w -T -6 -q 3');
-```
+<pre><code> im = imread(dc,'exposure10.nef','-w -T -6 -q 3');
+</code></pre>
 
 ### Linearize Rendered Images
 -------------
@@ -25,124 +24,121 @@ In order to make the pixel mapping as smooth as possible, the following optimiza
 
 The code that Debevec put in the paper is as follows.
 
-```
-    function [g,lE]=gsolve(Z,B,w)
-    n = 256;
-    A = sparse((size(Z,1)/100)*size(Z,2)+n+1,n+(size(Z,1)/100));
-    b = sparse(size(A,1),1);
+<pre><code> function [g,lE]=gsolve(Z,B,w)
+n = 256;
+A = sparse((size(Z,1)/100)*size(Z,2)+n+1,n+(size(Z,1)/100));
+b = sparse(size(A,1),1);
 
-    %% Include the data fitting equations
+%% Include the data fitting equations
 
-    k = 1;
-    for j=1:size(Z,2)
-        for i=1:100:size(Z,1)
-            wij = w(Z(i,j)+1);
+k = 1;
+for j=1:size(Z,2)
+    for i=1:100:size(Z,1)
+        wij = w(Z(i,j)+1);
 
-            if Z(i,j) > 0
-                A(k,Z(i,j)+1) = wij;
-                A(k,n+i) = -wij;
-                b(k,1) = wij * B(k,1);
-            else
-                A(k,Z(i,j)+1) = 0;
-                b(k,1) = 0;
-            end   
-            k=k+1;
-        end
-    end
-
-    %% Fix the curve by setting its middle value to 0
-
-    A(k,129) = 1;
-    k=k+1;
-
-    %% Include the smoothness equations
-
-    for i=1:n-2
-        A(k,i)=1*w(i+1);
-        A(k,i+1)=-2*w(i+1);
-        A(k,i+2)=1*w(i+1);
-
+        if Z(i,j) > 0
+            A(k,Z(i,j)+1) = wij;
+            A(k,n+i) = -wij;
+            b(k,1) = wij * B(k,1);
+        else
+            A(k,Z(i,j)+1) = 0;
+            b(k,1) = 0;
+        end   
         k=k+1;
     end
-    %% Solve the system using SVD
-    x = A\b;
-    g = x(1:n);
-    lE = x(n+1:size(x,1));
-```
+end
+
+%% Fix the curve by setting its middle value to 0
+
+A(k,129) = 1;
+k=k+1;
+
+%% Include the smoothness equations
+
+for i=1:n-2
+    A(k,i)=1*w(i+1);
+    A(k,i+1)=-2*w(i+1);
+    A(k,i+2)=1*w(i+1);
+
+    k=k+1;
+end
+%% Solve the system using SVD
+x = A\b;
+g = x(1:n);
+lE = x(n+1:size(x,1));
+</code></pre>
 
 Since the image size was very large (4000 X 6000), we resized it 0.1x and in particular 100:1 sampling pixels into the equation. As a result, Pixel’s linear mapping looks like this. In the above equation, both the uniform type and the Tent type was used as a  w function as shown below.
 
-``` 
-    w_uni = zeros(256,1);
-    w_uni(3:253) = 1./256;
-    w_ten = zeros(256,1);
+<pre><code> w_uni = zeros(256,1);
+w_uni(3:253) = 1./256;
+w_ten = zeros(256,1);
 
-    for k=1:256
-        if k <= 128
-            w_ten(k) = (k)./256;
-        else
-            w_ten(k) = (257-k)./256;
-        end
+for k=1:256
+    if k <= 128
+        w_ten(k) = (k)./256;
+    else
+        w_ten(k) = (257-k)./256;
     end
-```
+end
+</code></pre>
 
 ![image](https://user-images.githubusercontent.com/45420635/49144071-c9448400-f33f-11e8-8a96-361052872847.png)
 
 Here’s my code
 
-``` 
-    M=400;
-    N=600;
-    K=16;
+<pre><code> M=400;
+N=600;
+K=16;
 
-    for i=1:16
-        i
-        filename = sprintf('exposure%d.jpg',i); 
-        im = imread(filename);
-        im = imresize(im,0.1);
-        Z(:,:,:,i) = im; 
-        B(1+(i-1)*(M/10)*(N/10):i*(M/10)*(N/10),1) = log((2^(i-1))/2048);
-    end
+for i=1:16
+    i
+    filename = sprintf('exposure%d.jpg',i); 
+    im = imread(filename);
+    im = imresize(im,0.1);
+    Z(:,:,:,i) = im; 
+    B(1+(i-1)*(M/10)*(N/10):i*(M/10)*(N/10),1) = log((2^(i-1))/2048);
+end
 
-    Z = reshape(Z,M*N,3,16);
+Z = reshape(Z,M*N,3,16);
 
+for c=1:3
+    [g,lE]=gsolve(squeeze(Z(:,c,:)),B,w_ten);
+    g_ten(:,c) = g;
+end
+g_ten = full(g_ten);
+
+for c=1:3
+    [g,lE]=gsolve(squeeze(Z(:,c,:)),B,w_uni);
+    g_uni(:,c) = g;
+end
+g_uni = full(g_uni);
+
+for c=1:3
+    c
+    g = g_ten(:,c);
+    Z_lin_ten(:,c,:) = exp(g(Z(:,c,:)+1)./255);
+end
+
+for k=1:16
     for c=1:3
-        [g,lE]=gsolve(squeeze(Z(:,c,:)),B,w_ten);
-        g_ten(:,c) = g;
+        Z_lin_ten(:,c,k) = uint8(255*(Z_lin_ten(:,c,k)-min(min(min(Z_lin_ten(:,c,k)))))./(max(max(max(Z_lin_ten(:,c,k))))-min(min(min(Z_lin_ten(:,c,k))))));
     end
-    g_ten = full(g_ten);
+end
+Z_temp = reshape(Z,M,N,3,16);
 
+for c=1:3
+    c
+    g = g_uni(:,c);
+    Z_lin_uni(:,c,:) = exp(g(Z(:,c,:)+1)./255);
+end
+
+for k=1:16
     for c=1:3
-        [g,lE]=gsolve(squeeze(Z(:,c,:)),B,w_uni);
-        g_uni(:,c) = g;
+        Z_lin_uni(:,c,k) = uint8(255*(Z_lin_uni(:,c,k)-min(min(min(Z_lin_uni(:,c,k)))))./(max(max(max(Z_lin_uni(:,c,k))))-min(min(min(Z_lin_uni(:,c,k))))));
     end
-    g_uni = full(g_uni);
-
-    for c=1:3
-        c
-        g = g_ten(:,c);
-        Z_lin_ten(:,c,:) = exp(g(Z(:,c,:)+1)./255);
-    end
-
-    for k=1:16
-        for c=1:3
-            Z_lin_ten(:,c,k) = uint8(255*(Z_lin_ten(:,c,k)-min(min(min(Z_lin_ten(:,c,k)))))./(max(max(max(Z_lin_ten(:,c,k))))-min(min(min(Z_lin_ten(:,c,k))))));
-        end
-    end
-    Z_temp = reshape(Z,M,N,3,16);
-
-    for c=1:3
-        c
-        g = g_uni(:,c);
-        Z_lin_uni(:,c,:) = exp(g(Z(:,c,:)+1)./255);
-    end
-
-    for k=1:16
-        for c=1:3
-            Z_lin_uni(:,c,k) = uint8(255*(Z_lin_uni(:,c,k)-min(min(min(Z_lin_uni(:,c,k)))))./(max(max(max(Z_lin_uni(:,c,k))))-min(min(min(Z_lin_uni(:,c,k))))));
-        end
-    end
-```
+end
+</code></pre>
 
 * Weighting function = Uniform
 
@@ -167,62 +163,61 @@ When using logarithmic merging, the HDR image is formed as:
 
 Here’s my code
 
-``` 
-    Z_lin_ten = reshape(Z_lin_ten,M,N,3,16);
-    Z_lin_uni = reshape(Z_lin_uni,M,N,3,16);
+<pre><code> Z_lin_ten = reshape(Z_lin_ten,M,N,3,16);
+Z_lin_uni = reshape(Z_lin_uni,M,N,3,16);
 
-    % Linear merging
+% Linear merging
 
-    for k=1:16
-        num_temp = w_ten(Z_temp(:,:,:,k)+1).*(Z_lin_ten(:,:,:,k)./255)./(2^(k-1)/2048);
-        den_temp = w_ten(Z_temp(:,:,:,k)+1);
-        num = num + num_temp;
-        den = den + den_temp;
-    end
+for k=1:16
+    num_temp = w_ten(Z_temp(:,:,:,k)+1).*(Z_lin_ten(:,:,:,k)./255)./(2^(k-1)/2048);
+    den_temp = w_ten(Z_temp(:,:,:,k)+1);
+    num = num + num_temp;
+    den = den + den_temp;
+end
 
-    final_linm_tent = num./den;
-    for c=1:3
-        final_linm_tent(:,:,c) = 255.*(final_linm_tent(:,:,c) - min(min(min(final_linm_tent(:,:,c)))))./(max(max(max(final_linm_tent(:,:,c))))-min(min(min(final_linm_tent(:,:,c)))));
-    end
+final_linm_tent = num./den;
+for c=1:3
+    final_linm_tent(:,:,c) = 255.*(final_linm_tent(:,:,c) - min(min(min(final_linm_tent(:,:,c)))))./(max(max(max(final_linm_tent(:,:,c))))-min(min(min(final_linm_tent(:,:,c)))));
+end
 
-    for k=1:16
-        num_temp = w_uni(Z_temp(:,:,:,k)+1).*(Z_lin_uni(:,:,:,k)./255)./(2^(k-1)/2048);
-        den_temp = w_uni(Z_temp(:,:,:,k)+1);
-        num = num + num_temp;
-        den = den + den_temp;
-    end
+for k=1:16
+    num_temp = w_uni(Z_temp(:,:,:,k)+1).*(Z_lin_uni(:,:,:,k)./255)./(2^(k-1)/2048);
+    den_temp = w_uni(Z_temp(:,:,:,k)+1);
+    num = num + num_temp;
+    den = den + den_temp;
+end
 
-    final_linm_uni = num./den;
-    for c=1:3
-        final_linm_uni(:,:,c) = 255.*(final_linm_uni(:,:,c) - min(min(min(final_linm_uni(:,:,c)))))./(max(max(max(final_linm_uni(:,:,c))))-min(min(min(final_linm_uni(:,:,c)))));
-    end
+final_linm_uni = num./den;
+for c=1:3
+    final_linm_uni(:,:,c) = 255.*(final_linm_uni(:,:,c) - min(min(min(final_linm_uni(:,:,c)))))./(max(max(max(final_linm_uni(:,:,c))))-min(min(min(final_linm_uni(:,:,c)))));
+end
 
-    % Logarithmic merging
+% Logarithmic merging
 
-    for k=1:16
-        num_temp = w_ten(Z_temp(:,:,:,k)+1).*(Z_lin_ten(:,:,:,k)./255-log(2^(k-1)/2048));
-        den_temp = w_ten(Z_temp(:,:,:,k)+1);
-        num = num + num_temp;
-        den = den + den_temp;
-    end
+for k=1:16
+    num_temp = w_ten(Z_temp(:,:,:,k)+1).*(Z_lin_ten(:,:,:,k)./255-log(2^(k-1)/2048));
+    den_temp = w_ten(Z_temp(:,:,:,k)+1);
+    num = num + num_temp;
+    den = den + den_temp;
+end
 
-    final_logm_tent = exp(num./den./255);
-    for c=1:3
-        final_logm_tent(:,:,c) = 255.*(final_logm_tent(:,:,c) - min(min(min(final_logm_tent(:,:,c)))))./(max(max(max(final_logm_tent(:,:,c))))-min(min(min(final_logm_tent(:,:,c)))));
-    end
+final_logm_tent = exp(num./den./255);
+for c=1:3
+    final_logm_tent(:,:,c) = 255.*(final_logm_tent(:,:,c) - min(min(min(final_logm_tent(:,:,c)))))./(max(max(max(final_logm_tent(:,:,c))))-min(min(min(final_logm_tent(:,:,c)))));
+end
 
-    for k=1:16
-        num_temp = w_uni(Z_temp(:,:,:,k)+1).*(Z_lin_uni(:,:,:,k)./255-log(2^(k-1)/2048));
-        den_temp = w_uni(Z_temp(:,:,:,k)+1);
-        num = num + num_temp;
-        den = den + den_temp;
-    end
+for k=1:16
+    num_temp = w_uni(Z_temp(:,:,:,k)+1).*(Z_lin_uni(:,:,:,k)./255-log(2^(k-1)/2048));
+    den_temp = w_uni(Z_temp(:,:,:,k)+1);
+    num = num + num_temp;
+    den = den + den_temp;
+end
 
-    final_logm_uni = exp(num./den./255);
-    for c=1:3
-        final_logm_uni(:,:,c) = 255.*(final_logm_uni(:,:,c) - min(min(min(final_logm_uni(:,:,c)))))./(max(max(max(final_logm_uni(:,:,c))))-min(min(min(final_logm_uni(:,:,c)))));
-    end
-```
+final_logm_uni = exp(num./den./255);
+for c=1:3
+    final_logm_uni(:,:,c) = 255.*(final_logm_uni(:,:,c) - min(min(min(final_logm_uni(:,:,c)))))./(max(max(max(final_logm_uni(:,:,c))))-min(min(min(final_logm_uni(:,:,c)))));
+end
+</code></pre>
 
 Here’s the result
 
@@ -244,24 +239,23 @@ The photographic tonemapping equation is as follows. I have tried both processin
 
 ![image](https://user-images.githubusercontent.com/45420635/49144423-b1213480-f340-11e8-9479-63d78d58446f.png)
 
-``` 
-    % Photographic Tonemapping
+<pre><code> % Photographic Tonemapping
 
-    I = final_logm_tent;
-    K = 0.15;
-    B = 0.95;
-    eps = 1e-8;
+I = final_logm_tent;
+K = 0.15;
+B = 0.95;
+eps = 1e-8;
 
-    for c=1:3
+for c=1:3
 
-        I_white = B*max(max(I(:,:,c)));
-        I_m = exp(sum(sum(log(I(:,:,c)+eps)))./(M*N));
-        I_hat = K.*I(:,:,c)./I_m;
+    I_white = B*max(max(I(:,:,c)));
+    I_m = exp(sum(sum(log(I(:,:,c)+eps)))./(M*N));
+    I_hat = K.*I(:,:,c)./I_m;
 
-        final_I(:,:,c) = (I_hat.*(1+(I_hat./(I_white)^2)))./(1+I_hat);
-        final_I(:,:,c) = 255.*(final_I(:,:,c)./(max(max(final_I(:,:,c)))));
-    end
-```
+    final_I(:,:,c) = (I_hat.*(1+(I_hat./(I_white)^2)))./(1+I_hat);
+    final_I(:,:,c) = 255.*(final_I(:,:,c)./(max(max(final_I(:,:,c)))));
+end
+</code></pre>
 
 ![image](https://user-images.githubusercontent.com/45420635/49144447-c302d780-f340-11e8-9617-8aea45cc9149.png)
 
@@ -273,20 +267,19 @@ The Bilateral Filtering tonemapping equation is as follows. I have tried both pr
 + Apply an offset and a scale S to the base
 + Reconstructed the intensity
 
-``` 
-    S = 4;
-    I = final_logm_tent;
+<pre><code> S = 4;
+I = final_logm_tent;
 
-    for c=1:3
-        I_L = log(I(:,:,c)+eps);
-        I_L = (I_L - min(min(I_L)))./(max(max(I_L))-min(min(I_L)));
-        I_B = bfilter2(I_L,3);
-        I_D = I_L - I_B;
-        B_hat = S.*(I_B - max(max(I_B)));
-        I_final(:,:,c) = exp(B_hat+I_D);
-        I_final(:,:,c) = 255.*(I_final(:,:,c) - min(min(I_final(:,:,c))))./(max(max(I_final(:,:,c)))-min(min(I_final(:,:,c))));
-    end
-```
+for c=1:3
+    I_L = log(I(:,:,c)+eps);
+    I_L = (I_L - min(min(I_L)))./(max(max(I_L))-min(min(I_L)));
+    I_B = bfilter2(I_L,3);
+    I_D = I_L - I_B;
+    B_hat = S.*(I_B - max(max(I_B)));
+    I_final(:,:,c) = exp(B_hat+I_D);
+    I_final(:,:,c) = 255.*(I_final(:,:,c) - min(min(I_final(:,:,c))))./(max(max(I_final(:,:,c)))-min(min(I_final(:,:,c))));
+end
+</code></pre>
 
 ![image](https://user-images.githubusercontent.com/45420635/49144514-ea59a480-f340-11e8-97d9-69f453d41b91.png)
 

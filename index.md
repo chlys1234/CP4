@@ -9,7 +9,9 @@ I was able to import a given .NEF format raw file into a 16bit-TIFF file on MATL
 
 After reading the dcraw documentation, I loaded a .NEF format file from MATLAB with the following flag:
 
-``` im = imread(dc,'exposure10.nef','-w -T -6 -q 3');```
+``` 
+im = imread(dc,'exposure10.nef','-w -T -6 -q 3');
+```
 
 ### Linearize Rendered Images
 -------------
@@ -23,7 +25,8 @@ In order to make the pixel mapping as smooth as possible, the following optimiza
 
 The code that Debevec put in the paper is as follows.
 
-``` function [g,lE]=gsolve(Z,B,w)
+```
+function [g,lE]=gsolve(Z,B,w)
 n = 256;
 A = sparse((size(Z,1)/100)*size(Z,2)+n+1,n+(size(Z,1)/100));
 b = sparse(size(A,1),1);
@@ -66,9 +69,11 @@ x = A\b;
 g = x(1:n);
 lE = x(n+1:size(x,1));
 ```
+
 Since the image size was very large (4000 X 6000), we resized it 0.1x and in particular 100:1 sampling pixels into the equation. As a result, Pixel’s linear mapping looks like this. In the above equation, both the uniform type and the Tent type was used as a  w function as shown below.
 
-``` w_uni = zeros(256,1);
+``` 
+w_uni = zeros(256,1);
 w_uni(3:253) = 1./256;
 w_ten = zeros(256,1);
  
@@ -80,11 +85,13 @@ for k=1:256
     end
 end
 ```
+
 ![image](https://user-images.githubusercontent.com/45420635/49144071-c9448400-f33f-11e8-8a96-361052872847.png)
 
 Here’s my code
 
-``` M=400;
+``` 
+M=400;
 N=600;
 K=16;
  
@@ -160,7 +167,8 @@ When using logarithmic merging, the HDR image is formed as:
 
 Here’s my code
 
-``` Z_lin_ten = reshape(Z_lin_ten,M,N,3,16);
+``` 
+Z_lin_ten = reshape(Z_lin_ten,M,N,3,16);
 Z_lin_uni = reshape(Z_lin_uni,M,N,3,16);
  
 % Linear merging
@@ -236,7 +244,8 @@ The photographic tonemapping equation is as follows. I have tried both processin
 
 ![image](https://user-images.githubusercontent.com/45420635/49144423-b1213480-f340-11e8-9479-63d78d58446f.png)
 
-``` % Photographic Tonemapping
+``` 
+% Photographic Tonemapping
  
 I = final_logm_tent;
 K = 0.15;
@@ -264,7 +273,8 @@ The Bilateral Filtering tonemapping equation is as follows. I have tried both pr
 + Apply an offset and a scale S to the base
 + Reconstructed the intensity
 
-``` S = 4;
+``` 
+S = 4;
 I = final_logm_tent;
  
 for c=1:3
